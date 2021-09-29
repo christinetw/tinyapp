@@ -43,7 +43,7 @@ app.post("/urls", (req, res) => {
   res.redirect(`/urls/${shortURL}`);
 });
 
-// Display the page which show our new short URL with the original long URL
+// Display the page which shows a short URL with its long URL
 app.get("/urls/:shortURL", (req, res) => {
   console.log(req.params.shortURL);
   
@@ -74,10 +74,14 @@ app.post("/urls/:shortURL/delete", (req, res) => {
   res.render("urls_index", templateVars);
 });
 
+app.post("/urls/:id", (req, res) => {
+  let shortURL = req.params.id;
+  let longURL = req.body.longURL;
 
-
-
-
+  // Store the long URL in our 'database'
+  urlDatabase[shortURL] = longURL;
+  res.redirect("/urls");
+});
 
 //============================================================
 
