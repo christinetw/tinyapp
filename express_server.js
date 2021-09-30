@@ -1,10 +1,16 @@
 const express = require("express");
 const bcrypt = require('bcryptjs');
 
-let cookieParser = require('cookie-parser');
+let cookieSession = require('cookie-session')
 
 const app = express();
-app.use(cookieParser());
+app.use(cookieSession({
+  name: 'session',
+  keys: ['EFCF7FFAA47CD20C68529CC828E924D9', '4E46B353F4D4B85ED5F51E614AADAA82'],
+
+  // Cookie Options
+  maxAge: 24 * 60 * 60 * 1000 // 24 hours
+}))
 
 const PORT = 8080; // default port 8080
 app.set("view engine", "ejs");
@@ -104,7 +110,7 @@ const checkShortURL = function(shortURL, userID, res) {
 
 // Show the page for creating a new short URL
 app.get("/urls/new", (req, res) => {
-  let userID = req.cookies["user_id"];
+  let userID = req.session.user_id;
   if (userID === undefined) {
     res.redirect("/login");
   }
@@ -120,7 +126,7 @@ app.post("/urls", (req, res) => {
   let longURL = req.body.longURL;
 
   // Store the long URL in our 'database'
-  let userID = req.cookies["user_id"];
+  let userID = req.session.user_id;
   urlDatabase[shortURL] = { "longURL": longURL, "userID": userID };
 
   // Redirect to the page that shows the long URL and short URL together
@@ -129,7 +135,7 @@ app.post("/urls", (req, res) => {
 
 // Display the page which shows a short URL with its long URL
 app.get("/urls/:shortURL", (req, res) => {
-  let userID = req.cookies["user_id"];
+  let userID = req.session.user_id;
 
   // Check our shortURL
   if (checkShortURL(req.params.shortURL, userID, res) === false) {
@@ -148,7 +154,7 @@ app.get("/urls/:shortURL", (req, res) => {
 
 // Display the page which shows all our short URL's
 app.get("/urls", (req, res) => {
-  let userID = req.cookies["user_id"];
+  let userID = req.session.user_id;
   if (userID === undefined) {
     res.send('Please login to see your URLs');
     return;
@@ -160,7 +166,7 @@ app.get("/urls", (req, res) => {
 
 // Redirect from a short URL to the actual long URL
 app.get("/u/:shortURL", (req, res) => {
-  let userID = req.cookies["user_id"];
+  let userID = req.session.user_id;
   const longURL = urlDatabase[req.params.shortURL].longURL;
 
   // Check our shortURL
@@ -173,7 +179,7 @@ app.get("/u/:shortURL", (req, res) => {
 
 // Delete a shortURL
 app.post("/urls/:shortURL/delete", (req, res) => {
-  let userID = req.cookies["user_id"];
+  let userID = req.session.user_id;
 
   // Check our shortURL
   if (checkShortURL(req.params.shortURL, userID, res) === false) {
@@ -186,7 +192,7 @@ app.post("/urls/:shortURL/delete", (req, res) => {
 });
 
 app.post("/urls/:id", (req, res) => {
-  let userID = req.cookies["user_id"];
+  let userID = req.session.user_id;
   let shortURL = req.params.id;
   let longURL = req.body.longURL;
 
@@ -201,13 +207,13 @@ app.post("/urls/:id", (req, res) => {
 });
 
 app.post("/logout", (req, res) => {
-  res.clearCookie('user_id');
+  req.session = null;
   res.redirect("/urls");
 });
 
 // Display login page
 app.get("/login", (req, res) => {
-  let userID = req.cookies["user_id"];
+  let userID = req.session.user_id;
   if (userID !== undefined) {
     res.redirect("/urls");
   }
@@ -233,13 +239,13 @@ app.post("/login", (req, res) => {
   }
 
   // Correct username and password, set the cookie, redirect to url list
-  res.cookie('user_id', userFound.id);
+  req.session.user_id = userFound.id;
   res.redirect("/urls");
 });
 
 // Display registration page
 app.get("/register", (req, res) => {
-  let userID = req.cookies["user_id"];
+  let userID = req.session.user_id;
 
   if (userID !== undefined) {
     res.redirect("/urls");
@@ -272,7 +278,7 @@ app.post("/register", (req, res) => {
   const hashedPassword = bcrypt.hashSync(req.body.password, 10);
   users[userId].password = hashedPassword;
 
-  res.cookie('user_id', userId);
+  req.session.user_id = userId;
   res.redirect("/urls");
 });
 
