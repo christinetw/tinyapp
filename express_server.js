@@ -116,23 +116,47 @@ app.post("/urls/:id", (req, res) => {
   res.redirect("/urls");
 });
 
-app.post("/login", (req, res) => {
-  let user_id = req.body.user_id;
-  res.cookie('user_id', user_id);
-  res.redirect("/urls");
-});
-
 app.post("/logout", (req, res) => {
   res.clearCookie('user_id');
   res.redirect("/urls");
 });
 
+// Display login page
+app.get("/login",(req,res) => {
+  let userID = req.cookies["user_id"];
+  const templateVars = { user: users[userID] };
+  res.render("login", templateVars);
+});
+
+// Login user
+app.post("/login",(req,res) => {
+  let email = req.body.email;
+  let password = req.body.password;
+
+  const userFound = findUserByEmail(req.body.email);
+  if (userFound === undefined) {
+    res.sendStatus(403);
+    return;
+  }
+  
+  if (password !== userFound.password) {
+    res.sendStatus(403);
+    return;
+  }
+
+  // Correct username and password, set the cookie, redirect to url list
+  res.cookie('user_id', userFound.id);
+  res.redirect("/urls");
+});
+
+// Display registration page
 app.get("/register",(req,res) => {
   let userID = req.cookies["user_id"];
   const templateVars = { user: users[userID] };
-  res.render("register"), templateVars;
+  res.render("register", templateVars);
 });
 
+// Register a new user
 app.post("/register",(req,res) => {
   if (req.body.email.length == 0 || req.body.password.length == 0) {
     res.status(400).send('Missing username or password.');

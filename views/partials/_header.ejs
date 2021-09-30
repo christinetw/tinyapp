@@ -15,14 +15,9 @@
             <button type="submit" class="btn btn-primary">Logout</button>
           </form>
         <% } else{ %>
-          <form class="form-inline" action="/login" method="POST">
-            <input class="form-control" type="text" name="user_id" placeholder="Username">
-            <button type="submit" class="btn btn-primary">Login</button>
-          </form>
-          <form class="form-inline" action="/register" method="GET">
-            <button type="submit" class="btn btn-primary">register</button>
-          </form>
-         <% } %>
+          <a class="nav-item nav-link" href="/login">Login</a>
+          <a class="nav-item nav-link" href="/register">Register</a>
+          <% } %>
       </div>
     </div>
   </nav>
