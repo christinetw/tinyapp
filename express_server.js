@@ -1,8 +1,8 @@
 const express = require("express");
-var cookieParser = require('cookie-parser')
+let cookieParser = require('cookie-parser');
 
 const app = express();
-app.use(cookieParser())
+app.use(cookieParser());
 
 const PORT = 8080; // default port 8080
 app.set("view engine", "ejs");
@@ -11,19 +11,13 @@ const bodyParser = require("body-parser");
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // Helper method for generating a random alphanumeric string
-function generateRandomString(len) {
+const generateRandomString = function(len) {
   let randStr = "";
   let charList = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
   for (let i = 0; i < len; i++) {
     randStr += charList.charAt(Math.floor(Math.random() * charList.length));
   }
   return randStr;
-}
-
-// Our 'database' of key-value pairs (short URL --> long URL)
-let urlOldDatabase = {
-  "b2xVn2": "http://www.lighthouselabs.ca",
-  "9sm5xK": "http://www.google.com"
 };
 
 const urlDatabase = {
@@ -34,6 +28,10 @@ const urlDatabase = {
   i3BoGr: {
     longURL: "https://www.google.ca",
     userID: "aJ48lW"
+  },
+  abc123: {
+    longURL: "https://www.pcmag.com",
+    userID: "user3RandomID"
   }
 };
 
@@ -55,9 +53,9 @@ let users = {
   }
 };
 
-const findUserByEmail = function (email) {
-  for (let user_id in users) {
-    const user = users[user_id];
+const findUserByEmail = function(email) {
+  for (let userID in users) {
+    const user = users[userID];
     if (email === user.email) {
       return user;
     }
@@ -67,7 +65,7 @@ const findUserByEmail = function (email) {
 
 // Returns the URL's from the database which match the 'id' parameter
 // Returned value is an object of shortURL to longURL key-value pairs, eg. {"x7h19s" : "www.google.com"}
-const urlsForUser = function (id) {
+const urlsForUser = function(id) {
   let urls = {};
   for (let shortURL in urlDatabase) {
     if (id === urlDatabase[shortURL].userID) {
@@ -75,7 +73,30 @@ const urlsForUser = function (id) {
     }
   }
   return urls;
-}
+};
+
+// Check our shortURL exists and belongs to the user, and that user is logged in
+const checkShortURL = function(shortURL, userID, res) {
+  // 1. Check for user not logged in, return error and message
+  if (userID === undefined) {
+    res.send('Please login to use this service.');
+    return false;
+  }
+
+  // 2. Check that the shortURL exists
+  if (urlDatabase[shortURL] === undefined) {
+    res.send('No such short URL exists.');
+    return false;
+  }
+
+  // 3. Make sure this shortURL belongs to this user, if not return error and message
+  if (userID !== urlDatabase[shortURL].userID) {
+    res.send('This URL does not belong to you.');
+    return false;
+  }
+
+  return true;
+};
 
 //=============================================================
 
@@ -109,6 +130,11 @@ app.post("/urls", (req, res) => {
 app.get("/urls/:shortURL", (req, res) => {
   let userID = req.cookies["user_id"];
 
+  // Check our shortURL
+  if (checkShortURL(req.params.shortURL, userID, res) === false) {
+    return;
+  }
+
   // The variables that our template expects
   const templateVars = {
     shortURL: req.params.shortURL,
@@ -134,20 +160,40 @@ app.get("/urls", (req, res) => {
 
 // Redirect from a short URL to the actual long URL
 app.get("/u/:shortURL", (req, res) => {
+  let userID = req.cookies["user_id"];
   const longURL = urlDatabase[req.params.shortURL].longURL;
+
+  // Check our shortURL
+  if (checkShortURL(req.params.shortURL, userID, res) === false) {
+    return;
+  }
+
   res.redirect(longURL);
 });
 
+// Delete a shortURL
 app.post("/urls/:shortURL/delete", (req, res) => {
   let userID = req.cookies["user_id"];
+
+  // Check our shortURL
+  if (checkShortURL(req.params.shortURL, userID, res) === false) {
+    return;
+  }
+
   delete urlDatabase[req.params.shortURL];
   const templateVars = { urls: urlsForUser(userID), user: users[userID] };
   res.render("urls_index", templateVars);
 });
 
 app.post("/urls/:id", (req, res) => {
+  let userID = req.cookies["user_id"];
   let shortURL = req.params.id;
   let longURL = req.body.longURL;
+
+  // Check our shortURL
+  if (checkShortURL(req.params.shortURL, userID, res) === false) {
+    return;
+  }
 
   // Store the long URL in our 'database'
   urlDatabase[shortURL] = longURL;
@@ -174,7 +220,7 @@ app.post("/login", (req, res) => {
   let email = req.body.email;
   let password = req.body.password;
 
-  const userFound = findUserByEmail(req.body.email);
+  const userFound = findUserByEmail(email);
   console.log(userFound);
   if (userFound === undefined) {
     res.sendStatus(403);
@@ -203,7 +249,7 @@ app.get("/register", (req, res) => {
 
 // Register a new user
 app.post("/register", (req, res) => {
-  if (req.body.email.length == 0 || req.body.password.length == 0) {
+  if (req.body.email.length === 0 || req.body.password.length === 0) {
     res.status(400).send('Missing username or password.');
     return;
   }
@@ -218,7 +264,7 @@ app.post("/register", (req, res) => {
   users[userId] = {};
   users[userId].id = userId;
   users[userId].email = req.body.email;
-  users[userId].password = req.body.password
+  users[userId].password = req.body.password;
 
   res.cookie('user_id', userId);
   res.redirect("/urls");
