@@ -39,7 +39,15 @@ let users = {
   }
 };
 
-  
+const findUserByEmail = function(email) {
+  for (let user_id in users) {
+    const user = users[user_id];
+    if (email === user.email) {
+      return user;
+    }
+  }
+  return undefined;
+};
 
 //=============================================================
 
@@ -126,16 +134,25 @@ app.get("/register",(req,res) => {
 });
 
 app.post("/register",(req,res) => {
+  if (req.body.email.length == 0 || req.body.password.length == 0) {
+    res.status(400).send('Missing username or password.');
+    return;
+  }
+ 
+  const userFound = findUserByEmail(req.body.email);
+  if (userFound !== undefined) {
+    res.status(400).send('That user already exists');
+    return;
+  }
 
   let userId = generateRandomString(6); 
   users[userId] = {};
   users[userId].id = userId;
   users[userId].email = req.body.email;
   users[userId].password =req.body.password
-  
+ 
   res.cookie('user_id', userId);
   res.redirect("/urls");
-
 });
 
 //============================================================
