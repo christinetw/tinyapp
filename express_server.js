@@ -10,7 +10,7 @@ app.use(cookieSession({
 
   // Cookie Options
   maxAge: 24 * 60 * 60 * 1000 // 24 hours
-}))
+}));
 
 const PORT = 8080; // default port 8080
 app.set("view engine", "ejs");
@@ -224,7 +224,7 @@ app.post("/login", (req, res) => {
   }
 
   // Check matched hashed password
-  if (bcrypt.compareSync(password, userFound.password) == false) {
+  if (bcrypt.compareSync(password, userFound.password) === false) {
     res.sendStatus(403);
     return;
   }
