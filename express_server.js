@@ -8,7 +8,7 @@ const PORT = 8080; // default port 8080
 app.set("view engine", "ejs");
 
 const bodyParser = require("body-parser");
-app.use(bodyParser.urlencoded({extended: true}));
+app.use(bodyParser.urlencoded({ extended: true }));
 
 // Helper method for generating a random alphanumeric string
 function generateRandomString(len) {
@@ -21,30 +21,41 @@ function generateRandomString(len) {
 }
 
 // Our 'database' of key-value pairs (short URL --> long URL)
-let urlDatabase = {
+let urlOldDatabase = {
   "b2xVn2": "http://www.lighthouselabs.ca",
   "9sm5xK": "http://www.google.com"
 };
 
-let users = { 
+const urlDatabase = {
+  b6UTxQ: {
+    longURL: "https://www.tsn.ca",
+    userID: "aJ48lW"
+  },
+  i3BoGr: {
+    longURL: "https://www.google.ca",
+    userID: "aJ48lW"
+  }
+};
+
+let users = {
   "userRandomID": {
-    id: "userRandomID", 
-    email: "user@example.com", 
+    id: "userRandomID",
+    email: "user@example.com",
     password: "purple-monkey-dinosaur"
   },
- "user2RandomID": {
-    id: "user2RandomID", 
-    email: "user2@example.com", 
+  "user2RandomID": {
+    id: "user2RandomID",
+    email: "user2@example.com",
     password: "dishwasher-funk"
   },
   "user3RandomID": {
-    id: "user3RandomID", 
-    email: "bob@bob.com", 
+    id: "user3RandomID",
+    email: "bob@bob.com",
     password: "123"
   }
 };
 
-const findUserByEmail = function(email) {
+const findUserByEmail = function (email) {
   for (let user_id in users) {
     const user = users[user_id];
     if (email === user.email) {
@@ -53,6 +64,18 @@ const findUserByEmail = function(email) {
   }
   return undefined;
 };
+
+// Returns the URL's from the database which match the 'id' parameter
+// Returned value is an object of shortURL to longURL key-value pairs, eg. {"x7h19s" : "www.google.com"}
+const urlsForUser = function (id) {
+  let urls = {};
+  for (let shortURL in urlDatabase) {
+    if (id === urlDatabase[shortURL].userID) {
+      urls.shortURL = urlDatabase[shortURL].longURL;
+    }
+  }
+  return urls;
+}
 
 //=============================================================
 
@@ -68,26 +91,28 @@ app.get("/urls/new", (req, res) => {
 
 // Create a new short URL for the given long URL (in the request)
 app.post("/urls", (req, res) => {
-  
+
   // Create a new short URL
   let shortURL = generateRandomString(6);
   let longURL = req.body.longURL;
-  
+
   // Store the long URL in our 'database'
-  urlDatabase[shortURL] = longURL;
-  
+  let userID = req.cookies["user_id"];
+  urlDatabase[shortURL] = { "longURL": longURL, "userID": userID };
+  console.log(urlDatabase);
+
   // Redirect to the page that shows the long URL and short URL together
   res.redirect(`/urls/${shortURL}`);
 });
 
 // Display the page which shows a short URL with its long URL
 app.get("/urls/:shortURL", (req, res) => {
-   let userID = req.cookies["user_id"];
-  
+  let userID = req.cookies["user_id"];
+
   // The variables that our template expects
-  const templateVars = { 
-    shortURL: req.params.shortURL, 
-    longURL: urlDatabase[req.params.shortURL],
+  const templateVars = {
+    shortURL: req.params.shortURL,
+    longURL: urlDatabase[req.params.shortURL].longURL,
     user: users[userID]
   };
 
@@ -97,21 +122,26 @@ app.get("/urls/:shortURL", (req, res) => {
 // Display the page which shows all our short URL's
 app.get("/urls", (req, res) => {
   let userID = req.cookies["user_id"];
-  const templateVars = { urls: urlDatabase, user: users[userID] };
-  console.log(users);
+  if (userID === undefined) {
+    res.send('Please login to see your URLs');
+    return;
+  }
+
+  console.log(urlsForUser(userID));
+  const templateVars = { urls: urlsForUser(userID), user: users[userID] };
   res.render("urls_index", templateVars);
 });
 
 // Redirect from a short URL to the actual long URL
 app.get("/u/:shortURL", (req, res) => {
-  const longURL = urlDatabase[req.params.shortURL];
+  const longURL = urlDatabase[req.params.shortURL].longURL;
   res.redirect(longURL);
 });
 
 app.post("/urls/:shortURL/delete", (req, res) => {
   let userID = req.cookies["user_id"];
   delete urlDatabase[req.params.shortURL];
-  const templateVars = { urls: urlDatabase, user: users[userID]};
+  const templateVars = { urls: urlsForUser(userID), user: users[userID] };
   res.render("urls_index", templateVars);
 });
 
@@ -130,7 +160,7 @@ app.post("/logout", (req, res) => {
 });
 
 // Display login page
-app.get("/login",(req,res) => {
+app.get("/login", (req, res) => {
   let userID = req.cookies["user_id"];
   if (userID !== undefined) {
     res.redirect("/urls");
@@ -140,7 +170,7 @@ app.get("/login",(req,res) => {
 });
 
 // Login user
-app.post("/login",(req,res) => {
+app.post("/login", (req, res) => {
   let email = req.body.email;
   let password = req.body.password;
 
@@ -150,7 +180,7 @@ app.post("/login",(req,res) => {
     res.sendStatus(403);
     return;
   }
-  
+
   if (password !== userFound.password) {
     res.sendStatus(403);
     return;
@@ -162,7 +192,7 @@ app.post("/login",(req,res) => {
 });
 
 // Display registration page
-app.get("/register",(req,res) => {
+app.get("/register", (req, res) => {
   let userID = req.cookies["user_id"];
   if (userID !== undefined) {
     res.redirect("/urls");
@@ -172,24 +202,24 @@ app.get("/register",(req,res) => {
 });
 
 // Register a new user
-app.post("/register",(req,res) => {
+app.post("/register", (req, res) => {
   if (req.body.email.length == 0 || req.body.password.length == 0) {
     res.status(400).send('Missing username or password.');
     return;
   }
- 
+
   const userFound = findUserByEmail(req.body.email);
   if (userFound !== undefined) {
     res.status(400).send('That user already exists');
     return;
   }
 
-  let userId = generateRandomString(6); 
+  let userId = generateRandomString(6);
   users[userId] = {};
   users[userId].id = userId;
   users[userId].email = req.body.email;
-  users[userId].password =req.body.password
- 
+  users[userId].password = req.body.password
+
   res.cookie('user_id', userId);
   res.redirect("/urls");
 });
