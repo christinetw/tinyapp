@@ -36,6 +36,11 @@ let users = {
     id: "user2RandomID", 
     email: "user2@example.com", 
     password: "dishwasher-funk"
+  },
+  "user3RandomID": {
+    id: "user3RandomID", 
+    email: "bob@bob.com", 
+    password: "123"
   }
 };
 
@@ -54,6 +59,9 @@ const findUserByEmail = function(email) {
 // Show the page for creating a new short URL
 app.get("/urls/new", (req, res) => {
   let userID = req.cookies["user_id"];
+  if (userID === undefined) {
+    res.redirect("/login");
+  }
   const templateVars = { user: users[userID] };
   res.render("urls_new", templateVars);
 });
@@ -124,6 +132,9 @@ app.post("/logout", (req, res) => {
 // Display login page
 app.get("/login",(req,res) => {
   let userID = req.cookies["user_id"];
+  if (userID !== undefined) {
+    res.redirect("/urls");
+  }
   const templateVars = { user: users[userID] };
   res.render("login", templateVars);
 });
@@ -134,6 +145,7 @@ app.post("/login",(req,res) => {
   let password = req.body.password;
 
   const userFound = findUserByEmail(req.body.email);
+  console.log(userFound);
   if (userFound === undefined) {
     res.sendStatus(403);
     return;
@@ -152,6 +164,9 @@ app.post("/login",(req,res) => {
 // Display registration page
 app.get("/register",(req,res) => {
   let userID = req.cookies["user_id"];
+  if (userID !== undefined) {
+    res.redirect("/urls");
+  }
   const templateVars = { user: users[userID] };
   res.render("register", templateVars);
 });
