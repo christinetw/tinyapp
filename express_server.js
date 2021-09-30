@@ -1,4 +1,6 @@
 const express = require("express");
+const bcrypt = require('bcryptjs');
+
 let cookieParser = require('cookie-parser');
 
 const app = express();
@@ -120,7 +122,6 @@ app.post("/urls", (req, res) => {
   // Store the long URL in our 'database'
   let userID = req.cookies["user_id"];
   urlDatabase[shortURL] = { "longURL": longURL, "userID": userID };
-  console.log(urlDatabase);
 
   // Redirect to the page that shows the long URL and short URL together
   res.redirect(`/urls/${shortURL}`);
@@ -153,7 +154,6 @@ app.get("/urls", (req, res) => {
     return;
   }
 
-  console.log(urlsForUser(userID));
   const templateVars = { urls: urlsForUser(userID), user: users[userID] };
   res.render("urls_index", templateVars);
 });
@@ -221,13 +221,13 @@ app.post("/login", (req, res) => {
   let password = req.body.password;
 
   const userFound = findUserByEmail(email);
-  console.log(userFound);
   if (userFound === undefined) {
     res.sendStatus(403);
     return;
   }
 
-  if (password !== userFound.password) {
+  // Check matched hashed password
+  if (bcrypt.compareSync(password, userFound.password) == false) {
     res.sendStatus(403);
     return;
   }
@@ -240,9 +240,12 @@ app.post("/login", (req, res) => {
 // Display registration page
 app.get("/register", (req, res) => {
   let userID = req.cookies["user_id"];
+
   if (userID !== undefined) {
     res.redirect("/urls");
+    return;
   }
+
   const templateVars = { user: users[userID] };
   res.render("register", templateVars);
 });
@@ -264,7 +267,10 @@ app.post("/register", (req, res) => {
   users[userId] = {};
   users[userId].id = userId;
   users[userId].email = req.body.email;
-  users[userId].password = req.body.password;
+
+  // Store hashed password
+  const hashedPassword = bcrypt.hashSync(req.body.password, 10);
+  users[userId].password = hashedPassword;
 
   res.cookie('user_id', userId);
   res.redirect("/urls");
