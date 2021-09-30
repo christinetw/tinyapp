@@ -1,7 +1,7 @@
+const getUserByEmail = require('./helpers');
 const express = require("express");
 const bcrypt = require('bcryptjs');
-
-let cookieSession = require('cookie-session')
+let cookieSession = require('cookie-session');
 
 const app = express();
 app.use(cookieSession({
@@ -61,23 +61,13 @@ let users = {
   }
 };
 
-const findUserByEmail = function(email) {
-  for (let userID in users) {
-    const user = users[userID];
-    if (email === user.email) {
-      return user;
-    }
-  }
-  return undefined;
-};
-
 // Returns the URL's from the database which match the 'id' parameter
 // Returned value is an object of shortURL to longURL key-value pairs, eg. {"x7h19s" : "www.google.com"}
 const urlsForUser = function(id) {
   let urls = {};
   for (let shortURL in urlDatabase) {
     if (id === urlDatabase[shortURL].userID) {
-      urls.shortURL = urlDatabase[shortURL].longURL;
+      urls[shortURL] = urlDatabase[shortURL].longURL;
     }
   }
   return urls;
@@ -226,7 +216,8 @@ app.post("/login", (req, res) => {
   let email = req.body.email;
   let password = req.body.password;
 
-  const userFound = findUserByEmail(email);
+  const userFound = getUserByEmail(email, users);
+  console.log(userFound);
   if (userFound === undefined) {
     res.sendStatus(403);
     return;
@@ -263,7 +254,7 @@ app.post("/register", (req, res) => {
     return;
   }
 
-  const userFound = findUserByEmail(req.body.email);
+  const userFound = getUserByEmail(req.body.email, users);
   if (userFound !== undefined) {
     res.status(400).send('That user already exists');
     return;
