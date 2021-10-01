@@ -87,10 +87,11 @@ const checkShortURL = function(shortURL, userID, res) {
   return true;
 };
 
+// Create a basic HTML wrapper for our message
 const createHTMLmessage = function(text) {
   const msg = `<html><head></head><body><h3>${text}</h3></body></html>`;
   return msg;
-}
+};
 
 //=============================================================
 
@@ -162,7 +163,7 @@ app.get("/urls", (req, res) => {
   }
 
   const templateVars = { urls: urlsForUser(userID), user: users[userID] };
- res.render("urls_index", templateVars);
+  res.render("urls_index", templateVars);
 });
 
 // Redirect from a short URL to the actual long URL
