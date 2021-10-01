@@ -1,7 +1,7 @@
-const getUserByEmail = require('./helpers');
 const express = require("express");
 const bcrypt = require('bcryptjs');
 let cookieSession = require('cookie-session');
+const { getUserByEmail } = require('./helpers');
 
 const app = express();
 app.use(cookieSession({
@@ -36,10 +36,6 @@ const urlDatabase = {
   i3BoGr: {
     longURL: "https://www.google.ca",
     userID: "aJ48lW"
-  },
-  abc123: {
-    longURL: "https://www.pcmag.com",
-    userID: "user3RandomID"
   }
 };
 
@@ -53,11 +49,6 @@ let users = {
     id: "user2RandomID",
     email: "user2@example.com",
     password: "dishwasher-funk"
-  },
-  "user3RandomID": {
-    id: "user3RandomID",
-    email: "bob@bob.com",
-    password: "123"
   }
 };
 
@@ -77,26 +68,41 @@ const urlsForUser = function(id) {
 const checkShortURL = function(shortURL, userID, res) {
   // 1. Check for user not logged in, return error and message
   if (userID === undefined) {
-    res.send('Please login to use this service.');
+    res.status(401).send(createHTMLmessage('Please login to use this service.'));
     return false;
   }
 
   // 2. Check that the shortURL exists
   if (urlDatabase[shortURL] === undefined) {
-    res.send('No such short URL exists.');
+    res.status(404).send(createHTMLmessage('No such short URL exists.'));
     return false;
   }
 
   // 3. Make sure this shortURL belongs to this user, if not return error and message
   if (userID !== urlDatabase[shortURL].userID) {
-    res.send('This URL does not belong to you.');
+    res.status(403).send(createHTMLmessage('This URL does not belong to you.'));
     return false;
   }
 
   return true;
 };
 
+const createHTMLmessage = function(text) {
+  const msg = `<html><head></head><body><h3>${text}</h3></body></html>`;
+  return msg;
+}
+
 //=============================================================
+
+// Root redirect cases
+app.get("/", (req, res) => {
+  let userID = req.session.user_id;
+  if (userID === undefined) {
+    res.redirect("/login");
+  }
+  res.redirect("/urls");
+});
+
 
 // Show the page for creating a new short URL
 app.get("/urls/new", (req, res) => {
@@ -117,6 +123,11 @@ app.post("/urls", (req, res) => {
 
   // Store the long URL in our 'database'
   let userID = req.session.user_id;
+  if (userID === undefined) {
+    res.status(403).send(createHTMLmessage('Please login to create a new URL.'));
+    return;
+  }
+
   urlDatabase[shortURL] = { "longURL": longURL, "userID": userID };
 
   // Redirect to the page that shows the long URL and short URL together
@@ -146,24 +157,24 @@ app.get("/urls/:shortURL", (req, res) => {
 app.get("/urls", (req, res) => {
   let userID = req.session.user_id;
   if (userID === undefined) {
-    res.send('Please login to see your URLs');
+    res.status(401).send(createHTMLmessage('Please login to see your URLs.'));
     return;
   }
 
   const templateVars = { urls: urlsForUser(userID), user: users[userID] };
-  res.render("urls_index", templateVars);
+ res.render("urls_index", templateVars);
 });
 
 // Redirect from a short URL to the actual long URL
 app.get("/u/:shortURL", (req, res) => {
   let userID = req.session.user_id;
-  const longURL = urlDatabase[req.params.shortURL].longURL;
 
   // Check our shortURL
   if (checkShortURL(req.params.shortURL, userID, res) === false) {
     return;
   }
 
+  const longURL = urlDatabase[req.params.shortURL].longURL;
   res.redirect(longURL);
 });
 
@@ -181,21 +192,23 @@ app.post("/urls/:shortURL/delete", (req, res) => {
   res.render("urls_index", templateVars);
 });
 
+// Update or create a url
 app.post("/urls/:id", (req, res) => {
   let userID = req.session.user_id;
   let shortURL = req.params.id;
   let longURL = req.body.longURL;
 
   // Check our shortURL
-  if (checkShortURL(req.params.shortURL, userID, res) === false) {
+  if (checkShortURL(req.params.id, userID, res) === false) {
     return;
   }
 
-  // Store the long URL in our 'database'
-  urlDatabase[shortURL] = longURL;
+  // Store the long URL in our database
+  urlDatabase[shortURL] = { "longURL": longURL, "userID": userID };
   res.redirect("/urls");
 });
 
+// Logout the user, delete cookie, redirect to urls
 app.post("/logout", (req, res) => {
   req.session = null;
   res.redirect("/urls");
@@ -216,16 +229,17 @@ app.post("/login", (req, res) => {
   let email = req.body.email;
   let password = req.body.password;
 
+  // Look for the user
   const userFound = getUserByEmail(email, users);
-  console.log(userFound);
+
   if (userFound === undefined) {
-    res.sendStatus(403);
+    res.status(403).send(createHTMLmessage('Login error : email does not match any user.'));
     return;
   }
 
   // Check matched hashed password
   if (bcrypt.compareSync(password, userFound.password) === false) {
-    res.sendStatus(403);
+    res.status(403).send(createHTMLmessage('Login error : incorrect password.'));
     return;
   }
 
@@ -250,13 +264,13 @@ app.get("/register", (req, res) => {
 // Register a new user
 app.post("/register", (req, res) => {
   if (req.body.email.length === 0 || req.body.password.length === 0) {
-    res.status(400).send('Missing username or password.');
+    res.status(400).send(createHTMLmessage('Register : missing username or password.'));
     return;
   }
 
   const userFound = getUserByEmail(req.body.email, users);
   if (userFound !== undefined) {
-    res.status(400).send('That user already exists');
+    res.status(400).send(createHTMLmessage('Register : user account already exists.'));
     return;
   }
 
