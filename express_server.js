@@ -100,6 +100,7 @@ app.get("/", (req, res) => {
   let userID = req.session.user_id;
   if (userID === undefined) {
     res.redirect("/login");
+    return;
   }
   res.redirect("/urls");
 });
@@ -110,6 +111,7 @@ app.get("/urls/new", (req, res) => {
   let userID = req.session.user_id;
   if (userID === undefined) {
     res.redirect("/login");
+    return;
   }
   const templateVars = { user: users[userID] };
   res.render("urls_new", templateVars);
@@ -168,14 +170,14 @@ app.get("/urls", (req, res) => {
 
 // Redirect from a short URL to the actual long URL
 app.get("/u/:shortURL", (req, res) => {
-  let userID = req.session.user_id;
-
-  // Check our shortURL
-  if (checkShortURL(req.params.shortURL, userID, res) === false) {
-    return;
+  // First check if we know this short URL, error if not
+  let dbObj = urlDatabase[req.params.shortURL];
+  if (dbObj === undefined) {
+    res.status(404).send(createHTMLmessage('No such short URL exists.'));
+    return false;
   }
 
-  const longURL = urlDatabase[req.params.shortURL].longURL;
+  const longURL = dbObj.longURL;
   res.redirect(longURL);
 });
 
@@ -220,7 +222,9 @@ app.get("/login", (req, res) => {
   let userID = req.session.user_id;
   if (userID !== undefined) {
     res.redirect("/urls");
+    return;
   }
+
   const templateVars = { user: users[userID] };
   res.render("login", templateVars);
 });
